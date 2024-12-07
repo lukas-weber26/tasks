@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <alloca.h>
 #include <cglm/affine.h>
+#include <cglm/cam.h>
 #include <cglm/cglm.h>
 #include <cglm/affine-mat.h>
 #include <cglm/affine-pre.h>
@@ -22,12 +23,21 @@
 #include "stb_image.h"
 
 typedef enum {TRIANGLE, PANE} shape;
-
+int v_toggle = 0;
 int width = 1920, height = 1080;
 
 void process_input(GLFWwindow * window) {
+	static int block = 0;
+	block = block - 1;
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
+	}
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+		if (block < 0) {
+			v_toggle  = (v_toggle + 1) %2;
+			block = 10;
+		}
+
 	}
 	super_camera_keypress_update(window);
 }
@@ -215,6 +225,17 @@ int main() {
 	unsigned int cube_projection_view_loc = glGetUniformLocation(cube_program.gl_program, "projection_view");
 	unsigned int cube_model_loc = glGetUniformLocation(cube_program.gl_program, "model");
 
+	program shadow_cube_program = program_create();
+	shadow_cube_program = program_add_shader(shadow_cube_program, "./shadow_cube_vertex.glsl", GL_VERTEX_SHADER);
+	shadow_cube_program = program_add_shader(shadow_cube_program, "./shadow_cube_fragment.glsl", GL_FRAGMENT_SHADER);
+	shadow_cube_program = program_complte(shadow_cube_program);
+	program_bind(shadow_cube_program);
+
+	unsigned int shadow_cube_projection_view_loc = glGetUniformLocation(shadow_cube_program.gl_program, "projection_view");
+	unsigned int shadow_cube_model_loc = glGetUniformLocation(shadow_cube_program.gl_program, "model");
+	unsigned int shadow_cube_light_view_loc = glGetUniformLocation(shadow_cube_program.gl_program, "light_view");
+	unsigned int shadow_texture_loc = glGetUniformLocation(shadow_cube_program.gl_program, "tex_image");
+
 	mat4 cube_1_model;
 	glm_mat4_identity(cube_1_model);
 	//end of cube setup	
@@ -253,7 +274,16 @@ int main() {
 		glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		program_bind(cube_program);
-		glUniformMatrix4fv(cube_projection_view_loc, 1, GL_FALSE, (float *)*super_camera_projection_view(camera));
+		//glUniformMatrix4fv(cube_projection_view_loc, 1, GL_FALSE, (float *)*super_camera_projection_view(camera));
+		
+		mat4 ortho_cam;
+		mat4 ortho_proj;
+		mat4 ortho_view;
+		glm_ortho(-15, 15, -15, 15, 1.0, 30.0, ortho_proj);	
+		glm_lookat((vec3){6.0, 4.0, 1.0}, (vec3){0,0,0}, (vec3){0.0, 1.0, 0.0}, ortho_view);
+		glm_mat4_mul(ortho_proj, ortho_view, ortho_cam);
+
+		glUniformMatrix4fv(cube_projection_view_loc, 1, GL_FALSE, (float *) ortho_cam);
 
 		mat4 local_model;
 		for (int i = -5; i < 5; i++) {
@@ -271,11 +301,35 @@ int main() {
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		program_bind(pane_program);	
-		glActiveTexture(GL_TEXTURE0);	
-		glBindTexture(GL_TEXTURE_2D, depth_texture);
-		glUniform1i(texture_loc, 0);
-		draw_pane_vao(pane_VAO);
+
+		if (v_toggle == 1) {
+			program_bind(shadow_cube_program);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, depth_texture);
+			glUniform1i(shadow_texture_loc, 0);
+
+			glUniformMatrix4fv(cube_projection_view_loc, 1, GL_FALSE, (float *)super_camera_projection_view(camera));
+			glUniformMatrix4fv(shadow_cube_light_view_loc, 1, GL_FALSE, (float *)ortho_cam);
+
+			for (int i = -5; i < 5; i++) {
+				for (int j = -5; j < 5; j++) {
+					glm_translate_to(cube_1_model, (vec3){(float)i*3.0,0.0, (float)j*3.0}, local_model);	
+					glUniformMatrix4fv(cube_model_loc, 1, GL_FALSE, (float *)local_model);
+					draw_cube_vao(cube_VAO);	
+				}
+			}
+					
+			glm_scale_to(cube_1_model, (vec3){25.0,1.0,25.0}, local_model);	
+			glm_translate_y(local_model, -5.0);
+			glUniformMatrix4fv(cube_model_loc, 1, GL_FALSE, (float *)local_model);
+			draw_cube_vao(cube_VAO);	
+		} else {
+			program_bind(pane_program);	
+			glActiveTexture(GL_TEXTURE0);	
+			glBindTexture(GL_TEXTURE_2D, depth_texture);
+			glUniform1i(texture_loc, 0);
+			draw_pane_vao(pane_VAO);
+		}
 
 		super_camera_update(camera);
 		super_camera_print(camera);
