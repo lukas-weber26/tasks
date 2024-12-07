@@ -268,6 +268,7 @@ int main() {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);	
 
+	glEnable(GL_CULL_FACE);
 	while(!glfwWindowShouldClose(window)) {
 		process_input(window);
 
@@ -285,6 +286,7 @@ int main() {
 
 		glUniformMatrix4fv(cube_projection_view_loc, 1, GL_FALSE, (float *) ortho_cam);
 
+		glCullFace(GL_FRONT);
 		mat4 local_model;
 		for (int i = -5; i < 5; i++) {
 			for (int j = -5; j < 5; j++) {
@@ -301,7 +303,9 @@ int main() {
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glDisable(GL_CULL_FACE);
 
+		glCullFace(GL_BACK);
 		if (v_toggle == 1) {
 			program_bind(shadow_cube_program);
 			glActiveTexture(GL_TEXTURE0);
