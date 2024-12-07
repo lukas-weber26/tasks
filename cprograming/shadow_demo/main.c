@@ -279,8 +279,8 @@ int main() {
 		mat4 ortho_cam;
 		mat4 ortho_proj;
 		mat4 ortho_view;
-		glm_ortho(-15, 15, -15, 15, 1.0, 30.0, ortho_proj);	
-		glm_lookat((vec3){6.0, 4.0, 1.0}, (vec3){0,0,0}, (vec3){0.0, 1.0, 0.0}, ortho_view);
+		glm_ortho(-30, 30, -30, 30, 1.0, 200.0, ortho_proj);	
+		glm_lookat((vec3){20.0, 20.0, 20.0}, (vec3){0,0,0}, (vec3){0.0, 1.0, 0.0}, ortho_view);
 		glm_mat4_mul(ortho_proj, ortho_view, ortho_cam);
 
 		glUniformMatrix4fv(cube_projection_view_loc, 1, GL_FALSE, (float *) ortho_cam);
@@ -341,6 +341,3 @@ int main() {
 	glfwTerminate();
 }
 
-//next step: make a little scene with lots of cubes and render it to a depth buffer, then try to visualzie that depth buffer.
-//then try to display "shadows" on the real cubes.
-//do not bother trying to implement lighting, its not new and would not contribute.
