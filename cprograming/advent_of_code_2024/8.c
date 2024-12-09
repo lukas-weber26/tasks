@@ -260,7 +260,11 @@ void antena_table_resolve_antinodes(antena_table * antenas, antinode_table * ant
 			//printf("\n");
 		}
 	}
-} 
+}
+
+long long int list_checksum(list * l) {
+
+}
 
 int main() {
 	antena_table * antenas;
