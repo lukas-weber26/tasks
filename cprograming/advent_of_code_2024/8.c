@@ -233,11 +233,30 @@ void location_list_calcualte_antinodes(location_list * locations, antinode_table
 	}
 }
 
+void location_list_calcualte_antinodes_p2(location_list * locations, antinode_table * antinodes) {
+	for (int i = 0; i < locations->cur - 1; i ++) {
+		for (int j = i + 1; j < locations->cur; j ++) {
+
+			location a = locations->locs[i];
+			location b = locations->locs[j];
+
+			for (int z = 0; z < antinodes->size.x; z++) {
+				location c = {a.x - z*(a.x-b.x),a.y - z*(a.y-b.y)};	
+				location d = {a.x + z*(a.x-b.x), a.y + z*(a.y-b.y)};	
+				antinode_table_push(antinodes, c);
+				antinode_table_push(antinodes, d);
+			}	
+
+		}
+	}
+}
+
 void antena_table_resolve_antinodes(antena_table * antenas, antinode_table * antinodes) {
 	for (int i = 0; i < antenas->size; i++) {
 		if (antenas->type[i] != -1) {
 			//printf("Resoving antinodes:\n");
-			location_list_calcualte_antinodes(antenas->lists[i], antinodes);
+			//location_list_calcualte_antinodes(antenas->lists[i], antinodes);
+			location_list_calcualte_antinodes_p2(antenas->lists[i], antinodes);
 			//printf("\n");
 		}
 	}
