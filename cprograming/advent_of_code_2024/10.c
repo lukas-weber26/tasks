@@ -146,6 +146,13 @@ void get_trail_type2(map * m, int x, int y, int * count) {
 	right = map_get(m, x+1, y);
 	self = map_get(m, x, y);
 
+	if (self == '.') {
+		map_delete(m);
+		return;
+	}
+
+	//map_print(m);
+
 	if (self == '9') {
 		(*count)++;
 		map_set(m, x, y, self + 10);
@@ -153,22 +160,22 @@ void get_trail_type2(map * m, int x, int y, int * count) {
 		map_set(m, x, y, self + 10);
 
 		if (up - self == 1) {
-			get_trail(map_cpy(m), x, y-1, count);
+			get_trail_type2(map_cpy(m), x, y-1, count);
 		}
 		
 		if (down - self == 1) {
-			get_trail(map_cpy(m), x, y+1, count);
+			get_trail_type2(map_cpy(m), x, y+1, count);
 		}
 		
 		if (left - self == 1) {
-			get_trail(map_cpy(m), x-1, y, count);
+			get_trail_type2(map_cpy(m), x-1, y, count);
 		}
 		
 		if (right - self == 1) {
-			get_trail(map_cpy(m), x+1, y, count);
+			get_trail_type2(map_cpy(m), x+1, y, count);
 		}
 	} 
-
+	
 	map_delete(m);
 }
 
