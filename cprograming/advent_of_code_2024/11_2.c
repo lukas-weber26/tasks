@@ -123,6 +123,7 @@ table * table_blink(table * t) {
 }
 
 int main () {
+
 	table * starting_table = table_create(1048576);
 	long long int data [8] = {5688,62084,2,3248809,179,79,0,172169};
 	
@@ -139,6 +140,24 @@ int main () {
 	printf ("Blinked %d times, n items: %lld\n", i, table_count(starting_table));
 
 }
+
+//int main () {
+//	table * starting_table = table_create(1048576);
+//	long long int data [8] = {5688,62084,2,3248809,179,79,0,172169};
+//	
+//	for (int i = 0; i < 8; i++) {
+//		table_push(starting_table, data[i]);
+//	}
+//
+//	char c;
+//	int i = 0;
+//	while (i < 75) {
+//		starting_table = table_blink(starting_table);
+//		i++;
+//	}
+//	printf ("Blinked %d times, n items: %lld\n", i, table_count(starting_table));
+//
+//}
 
 
 
