@@ -1,2 +1,3 @@
-return int 10; count
-(int return 23 bob;)
+int main(void) {
+	return 2;
+}

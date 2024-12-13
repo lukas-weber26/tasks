@@ -209,6 +209,5 @@ token_list * tokenize (FILE * file) {
 		}
 
 	}
-	token_list_print(tokens);
 	return tokens;
 }

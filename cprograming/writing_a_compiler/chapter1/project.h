@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 
 typedef enum {LEX, PARSE, CODEGEN, ASSEMBLY, FULL} compiler_mode;
-typedef enum {IDENTIFIER, CONSTANT, INT_KEYWORD, VOID_KEYWORD, RETURN_KEYWORD, OPEN_PAREN, CLOSE_PAREN, OPEN_BRACE, CLOSE_BRACE, SEMICOLON, PROGRAM, FUNCTION, STATEMENT, EXPRESSION, COMPLETE, OR, START_MAYBE, END_MAYBE} token_type; //added complete as a general nan 
+typedef enum {IDENTIFIER, CONSTANT, INT_KEYWORD, VOID_KEYWORD, RETURN_KEYWORD, OPEN_PAREN, CLOSE_PAREN, OPEN_BRACE, CLOSE_BRACE, SEMICOLON} token_type; //added complete as a general nan 
 //tokenizer tokens and more advanced lexer tokens are mixed. why? because these types need to shade a potential list for matching to occur
 
 typedef struct token {
@@ -26,6 +27,7 @@ typedef struct token_list {
 	int max;
 } token_list;
 
+//tokenization
 token * get_identifier_token(token_type type);
 token * emit_identifier_token(char * identifier);
 token * emit_constant_token(long long int constant);
@@ -46,4 +48,7 @@ int is_number(char * c, int count);
 int is_identifier(char * c, int count);
 token * emit_word(char * word, int * index);
 token_list * tokenize (FILE * file);
+
+//lexing
+void lex(token_list * tokens);
 

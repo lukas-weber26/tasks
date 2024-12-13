@@ -31,6 +31,7 @@ int main(int argc, char * argv[]) {
 		exit(0);
 	}
 
-	tokenize(input_file);	
+	token_list * tokens = tokenize(input_file);	
+	lex(tokens);
 
 }
