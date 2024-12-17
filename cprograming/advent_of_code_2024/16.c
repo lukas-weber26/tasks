@@ -214,21 +214,19 @@ void path_add(node * n, int x, int y, dir d, int c) {
 	//	printf("(%d,%d,%d,%d), ", n->costs[i], n->previous_nodes_x[i], n->previous_nodes_y[i], n->previous_nodes_d[i]);
 	//}
 	//printf("\t");
-	
-	n->costs[2] = n->costs[1];
-	n->previous_nodes_y[2] = n->previous_nodes_y[1];
-	n->previous_nodes_x[2] = n->previous_nodes_x[1];
-	n->previous_nodes_d[2] = n->previous_nodes_d[1];
 
-	n->costs[1] = n->costs[0];
-	n->previous_nodes_y[1] = n->previous_nodes_y[0];
-	n->previous_nodes_x[1] = n->previous_nodes_x[0];
-	n->previous_nodes_d[1] = n->previous_nodes_d[0];
+	    for (int i = 2; i > 0; i--) {
+		n->costs[i] = n->costs[i - 1];
+		n->previous_nodes_y[i] = n->previous_nodes_y[i - 1];
+		n->previous_nodes_x[i] = n->previous_nodes_x[i - 1];
+		n->previous_nodes_d[i] = n->previous_nodes_d[i - 1];
+	    }
 
-	n->costs[0] = c;
-	n->previous_nodes_y[0] = y;
-	n->previous_nodes_x[0] = x;
-	n->previous_nodes_d[0] = d;
+	    // Now set the new values at index 0
+	    n->costs[0] = c;
+	    n->previous_nodes_y[0] = y;
+	    n->previous_nodes_x[0] = x;
+	    n->previous_nodes_d[0] = d;
 	
 	//for (int i = 0; i < 3; i++) {
 	//	printf("(%d,%d,%d,%d), ", n->costs[i], n->previous_nodes_x[i], n->previous_nodes_y[i], n->previous_nodes_d[i]);
@@ -247,7 +245,7 @@ bool step_to(grid * g, maze * m, int prev_x, int prev_y, dir prev_d, int next_x,
 		//printf("Should add. ");
 		path_add(local, prev_x, prev_y, prev_d, cost);
 		//previous_nodes_add(local, prev_x, prev_y, prev_d);
-		return true;	
+		return false;	
 	}
 
 	return false;
@@ -381,7 +379,7 @@ int main() {
 	for (int i = 0; i < 4; i++) {
 		node * n = grid_get_node(g, g->end_x, g->end_y, i);
 		if (n->costs[0] == min_cost) {
-			//printf("N starts\n");
+			printf("N starts\n");
 			mark_best_path(g, m, g->end_x, g->end_y, i, &count);
 		}
 	}
