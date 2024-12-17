@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <assert.h>
 
-typedef enum {EAST = 0, SOUTH = 1, WEST = 2, NORTH = 3} dir;
+typedef enum {EAST = 0, SOUTH = 1, WEST = 2, NORTH = 3, NA} dir;
 
 void dir_print(dir d) {
 	switch (d) {
@@ -11,6 +11,7 @@ void dir_print(dir d) {
 		case SOUTH: printf("S\n"); break;	
 		case WEST: printf("W\n"); break;	
 		case NORTH: printf("N\n"); break;	
+		case NA: printf("error\n"); exit(0);
 	}
 }
 
@@ -48,6 +49,11 @@ char maze_get(maze * m, int x, int y) {
 }
 
 void maze_set(maze * m, int x, int y, char val) {
+	if (x < 0 || y < 0) {
+		return;
+	} else if (x >= m->len_x || y >= m->cur_y) {
+		return;	
+	}
 	m->data[y][x] = val;	
 }
 
@@ -80,233 +86,306 @@ maze * maze_from_file() {
 	return m;
 }
 
-typedef struct costs {
-	int N;
-	int E;
-	int S;
-	int W;
-} costs;
+typedef struct node {
+	int previous_nodes_x[3];	
+	int previous_nodes_y[3];	
+	dir previous_nodes_d[3];	
+	int costs[3];
+} node;
 
-int fun1 (int n) {
-	return (n/1000)%10;
-}
-int fun2 (int n) {
-	return (n %1000)%10;
-}
-
-void costs_print(costs c) {
-	if (c.E == -1) {
-		printf("00,00,00,00|");
-	} else {
-		printf("%d%d,%d%d,%d%d,%d%d|", fun1(c.E), fun2(c.E), fun1(c.S), fun2(c.S), fun1(c.W),fun2(c.W), fun1(c.N), fun2(c.N));
-	}
-	//printf("%d,%d,%d,%d|", c.E, c.S, c.W, c.N);
-	//printf("(%d, %d) ", c.E, c.N);
-}
-
-void costs_print_thousands(costs c) {
-	if (c.E == -1) {
-		printf("0,0,0,0|");
-	} else {
-		printf("%d,%d,%d,%d|", c.E/1000, c.S/1000, c.W/1000, c.N/1000);
-	}
-}
-
-void costs_print_ones(costs c) {
-	if (c.E == -1) {
-		printf("00,00,00,00|");
-	} else {
-		printf("%02d,%02d,%02d,%02d|", c.E%1000, c.S%1000, c.W%1000, c.N%1000);
-	}
-}
-
-typedef struct cost_table {
-	costs * data;
+typedef struct grid {
 	int x;
 	int y;
-} cost_table;
+	node * data;
+	int start_x;
+	int start_y;
+	int end_x;
+	int end_y;
+} grid;
 
-cost_table * cost_table_create(maze * m, int * cur_x, int * cur_y) {
-	cost_table * t = calloc(1, sizeof(cost_table));
-	t->x = m->len_x;
-	t->y = m->cur_y;
-	int xy = t->x * t->y;
-	t->data = malloc(sizeof(costs) * xy);
-	for (int i = 0; i < xy; i++) {
-		t->data[i].E = -1;
-		t->data[i].W = -1;
-		t->data[i].N = -1;
-		t->data[i].S = -1;
+node * grid_get_node(grid * g, int x, int y, dir d) {
+	if (x < 0 || y < 0) {
+		return NULL;
+	} else if (x >= g->x || y >= g->y) {
+		return NULL;
 	}
-
-	for (int i = 0; i < m->cur_y; i++) {
-		for (int j = 0; j < m->len_x; j++) {
-			if (m->data[i][j] == 'S') {
-				t->data[i*t->x + j].E = 0;
-				t->data[i*t->x + j].W = 2000;
-				t->data[i*t->x + j].N = 1000;
-				t->data[i*t->x + j].S = 1000;
-				*cur_x = j;
-				*cur_y = i;
-				break;
-			}
-		}
-	}
-	
-	return t;
+	return &g->data[d + x*4 + y*g->x*4];
 }
 
-void cost_table_print(cost_table * t) {
-	for (int i = 0; i < t->y; i++) {
-		for (int j = 0; j < t->x; j++) {
-			costs_print(t->data[j + i * t->x]);
-		}
-		printf("\n");
+grid * grid_create (maze * m) {
+	int n_elements = m->len_x * m->cur_y * 4;
+	grid * g = calloc(1, sizeof(grid));
+	if (g == NULL) {
+		printf("Not good\n");exit(0);
 	}
-	printf("\n");
-}
-
-void cost_table_print_alt(cost_table * t) {
-	for (int i = 0; i < t->y; i++) {
-		for (int j = 0; j < t->x; j++) {
-			costs_print_ones(t->data[j + i * t->x]);
-		}
-		printf("\n");
+	g->x = m->len_x;
+	g->y = m->cur_y;
+	g->data = malloc(sizeof(node) * n_elements);
+	if (g->data == NULL) {
+		printf("Not good\n");exit(0);
 	}
-	printf("\n");
-	for (int i = 0; i < t->y; i++) {
-		for (int j = 0; j < t->x; j++) {
-			costs_print_thousands(t->data[j + i * t->x]);
-		}
-		printf("\n");
-	}
-	printf("\n");
-}
-
-costs * table_get(cost_table * t, int x, int y) {
-	return &t->data[x + y*t->x];
-}
-
-bool update (cost_table * t, int cur_x, int cur_y, int next_cost, dir direction) {
-	int east_offset = 0, west_offset = 0, north_offset = 0, south_offset = 0;	
-	
-	if (direction == NORTH) {
-		cur_y -= 1;
-		east_offset = 1000;
-		west_offset = 1000;
-		north_offset = 0;
-		south_offset = 2000;
-	} else if (direction == SOUTH) {
-		cur_y += 1;
-		east_offset = 1000;
-		west_offset = 1000;
-		north_offset = 2000;
-		south_offset = 0;
-	} else if (direction == EAST) {
-		cur_x += 1;
-		east_offset = 0;
-		west_offset = 2000;
-		north_offset = 1000;
-		south_offset = 1000;
-	} else if (direction == WEST) {
-		cur_x -= 1;
-		east_offset = 2000;
-		west_offset = 0;
-		north_offset = 1000;
-		south_offset = 1000;
-	}
-
-	costs * cost = table_get(t, cur_x, cur_y);
-	bool update = false;
-	if ((next_cost + east_offset < cost->E) || (cost->E == -1)) { 
-		cost->E = next_cost + east_offset;
-		update = true;
-	} 
-	if ((next_cost + west_offset < cost->W) || (cost->W == -1)) { 
-		cost->W = next_cost + west_offset;
-		update = true;
-	} 
-	if ((next_cost + north_offset < cost->N) || (cost->N == -1)) { 
-		cost->N = next_cost + north_offset;
-		update = true;
-	} 
-	if ((next_cost + south_offset < cost->S) || (cost->S == -1)) { 
-		cost->S = next_cost + south_offset;
-		update = true;
-	} 
-
-	return update;
-}
-
-void step(maze * m,cost_table * t, int cur_x, int cur_y, dir blockdir) {
-	cost_table_print_alt(t);
-	//getchar();
-	char left = maze_get(m, cur_x-1, cur_y);
-	char right = maze_get(m, cur_x+1, cur_y);
-	char top = maze_get(m, cur_x, cur_y - 1);
-	char bottom = maze_get(m, cur_x, cur_y + 1);
-
-	if (left != '#' && blockdir != WEST) {
-		int left_cost = t->data[cur_x + cur_y *t->x].W;
-		int next_cost = left_cost + 1;
-		printf("Left is valid. %d, %d\n", left, next_cost);
-		if (update(t, cur_x, cur_y, next_cost, WEST)) {
-			step(m, t, cur_x - 1, cur_y, EAST);
-		}
-	}
-	if (right != '#' && blockdir != EAST) {
-		int right_cost = t->data[cur_x + cur_y *t->x].E;
-		int next_cost = right_cost + 1;
-		printf("Right is valid. %d, %d\n", right_cost, next_cost);
-		if (update(t, cur_x, cur_y, next_cost, EAST)) {
-			step(m, t, cur_x + 1, cur_y, WEST);
-		}
-	}
-	if (top != '#' && blockdir != NORTH) {
-		int top_cost = t->data[cur_x + cur_y *t->x].N;
-		int next_cost = top_cost + 1;
-		printf("Top is valid. %d, %d\n", top_cost, next_cost);
-		if (update(t, cur_x, cur_y, next_cost, NORTH)) {
-			step(m, t, cur_x, cur_y-1, SOUTH);
-		}
-	}
-	if (bottom != '#' && blockdir != SOUTH) {
-		int bottom_cost = t->data[cur_x + cur_y *t->x].S;
-		int next_cost = bottom_cost + 1;
-		printf("Bottom is valid. %d, %d\n", bottom_cost, next_cost);
-		if (update(t, cur_x, cur_y, next_cost, SOUTH)) {
-			step(m, t, cur_x, cur_y+1, NORTH);
-		}
-	}
-}
-
-int get_final_cost(maze * m, cost_table * t) {
-	for (int i = 0; i < m->cur_y; i ++) {
-		for (int j = 0; j < m->len_x; j ++) {
-			if (maze_get(m, j, i) == 'E') {
-				costs * c = table_get(t, j, i);
-				int l [4] = {c->E, c->N, c->S, c->W};
-				int min = l[0];
-				for (int z = 1; z < 4; z++) {
-					if (l[z] < min) {
-						min = l[z];
-					}
+	for (int y = 0; y < g->y; y++) {
+		for (int x = 0; x < g->x; x++) {
+			for (int d = 0; d < 4; d++) {
+				node * local = grid_get_node(g, x, y, d);
+				for (int i = 0; i < 3; i++) {
+					local->costs[i] = 100000000;
+					local->previous_nodes_x[i] = -1;
+					local->previous_nodes_y[i] = -1;
+					local->previous_nodes_d[i] = NA;
 				}
-				return min;
+				if (maze_get(m, x, y) == 'S') {
+					if (d == EAST) {
+						local->costs[0] = 0;
+					}
+					g->start_x = x;	
+					g->start_y = y;	
+				}
+				if (maze_get(m, x, y) == 'E') {
+					g->end_x = x;		
+					g->end_y = y;	
+				}
 			}
 		}
 	}
-	return -1;
+
+	return g;
+}
+
+void grid_print(grid * g) {
+	for (int y = 0; y < g->y; y++) {
+		for (int x = 0; x < g->x; x++) {
+			for (int d = 0; d < 4; d++) {
+				node * local = grid_get_node(g, x, y, d);
+				printf("---");
+			}
+			printf("-");
+		}
+		printf("\n");
+		for (int x = 0; x < g->x; x++) {
+			for (int d = 0; d < 4; d++) {
+				node * local = grid_get_node(g, x, y, d);
+				if (local->costs[0] > 10000) {
+					printf("   ");
+				} else {
+					printf("%02d,", local->costs[0]/100);
+				}
+			}
+			printf("|");
+		}
+		printf("\n");
+		for (int x = 0; x < g->x; x++) {
+			for (int d = 0; d < 4; d++) {
+				node * local = grid_get_node(g, x, y, d);
+				if (local->costs[0] > 10000) {
+					printf("   ");
+				} else {
+					printf("%02d,", local->costs[0]%100);
+				}
+			}
+			printf("|");
+		}
+		printf("\n");
+	}
+	printf("\n");
+}
+
+void previous_nodes_replace(node * n, int x, int y, dir d) {
+	for (int i = 0; i< 3; i++) {
+		n->previous_nodes_x[i] = -1;	
+		n->previous_nodes_y[i] = -1;	
+		n->previous_nodes_d[i] = NA;
+	}
+	n->previous_nodes_x[0] = x;
+	n->previous_nodes_y[0] = y;
+	n->previous_nodes_d[0] = d;
+}
+
+void previous_nodes_add(node * n, int x, int y, dir d) {
+	int i = 0; 
+	while (n->previous_nodes_x[i] == -1 && i < 2) {i ++;};
+	n->previous_nodes_x[i] = x;
+	n->previous_nodes_y[i] = y;
+	n->previous_nodes_d[i] = d;
+}
+		
+void path_add(node * n, int x, int y, dir d, int c) {
+	//for (int i = 0; i < 3; i++) {
+	//	printf("(%d,%d,%d,%d), ", n->costs[i], n->previous_nodes_x[i], n->previous_nodes_y[i], n->previous_nodes_d[i]);
+	//}
+	//printf("\t");
+	
+	n->costs[2] = n->costs[1];
+	n->previous_nodes_y[2] = n->previous_nodes_y[1];
+	n->previous_nodes_x[2] = n->previous_nodes_x[1];
+	n->previous_nodes_d[2] = n->previous_nodes_d[1];
+
+	n->costs[1] = n->costs[0];
+	n->previous_nodes_y[1] = n->previous_nodes_y[0];
+	n->previous_nodes_x[1] = n->previous_nodes_x[0];
+	n->previous_nodes_d[1] = n->previous_nodes_d[0];
+
+	n->costs[0] = c;
+	n->previous_nodes_y[0] = y;
+	n->previous_nodes_x[0] = x;
+	n->previous_nodes_d[0] = d;
+	
+	//for (int i = 0; i < 3; i++) {
+	//	printf("(%d,%d,%d,%d), ", n->costs[i], n->previous_nodes_x[i], n->previous_nodes_y[i], n->previous_nodes_d[i]);
+	//}
+	//printf("\n");
+}
+		
+bool step_to(grid * g, maze * m, int prev_x, int prev_y, dir prev_d, int next_x, int next_y, dir next_d, int cost) {
+	node * local = grid_get_node(g, next_x, next_y, next_d);
+
+	if (cost < local->costs[0]) {
+		//previous_nodes_replace(local, prev_x, prev_y, prev_d);
+		path_add(local, prev_x, prev_y, prev_d, cost);
+		return true;
+	} else if (cost == local->costs[0]) {
+		//printf("Should add. ");
+		path_add(local, prev_x, prev_y, prev_d, cost);
+		//previous_nodes_add(local, prev_x, prev_y, prev_d);
+		return true;	
+	}
+
+	return false;
+};
+
+void grid_step(grid * g, maze * m, int cur_x, int cur_y, dir cur_d) {
+	//grid_print(g);
+	//getchar();
+	int x_ahead = cur_x, y_ahead = cur_y;
+	dir next_dir, prev_dir;	
+
+	switch (cur_d) {
+		case NORTH: y_ahead --; next_dir = EAST; prev_dir = WEST; break;	
+		case SOUTH: y_ahead ++; next_dir = WEST; prev_dir = EAST; break;	
+		case EAST: x_ahead ++; next_dir = NORTH; prev_dir = SOUTH; break;	
+		case WEST: x_ahead --; next_dir = SOUTH; prev_dir = NORTH; break;	
+		case NA: printf("error\n"); exit(0);
+	}
+
+	char c_ahead = maze_get(m, x_ahead, y_ahead);
+	int current_cost = grid_get_node(g, cur_x, cur_y, cur_d)->costs[0];
+	//printf("Current: %d, %d, Local cost: %d, Ahead: %c\n", cur_x, cur_y, current_cost, c_ahead);
+
+	//always start by going ahdead since this is the cheapest
+	if (c_ahead != '#') {
+		if (step_to(g, m, cur_x, cur_y, cur_d, x_ahead, y_ahead, cur_d, current_cost + 1)) {
+			grid_step(g, m, x_ahead, y_ahead, cur_d);
+		}
+	}
+
+	//if this is not viable turn
+	if (step_to(g, m, cur_x, cur_y, cur_d, cur_x, cur_y, next_dir, current_cost + 1000)) {
+		grid_step(g, m, cur_x, cur_y, next_dir);
+	}
+		
+	if (step_to(g, m, cur_x, cur_y, cur_d, cur_x, cur_y, prev_dir, current_cost + 1000)) {
+		grid_step(g, m, cur_x, cur_y, prev_dir);
+	}
+	
+}
+
+int grid_get_final_cost(grid * g) {
+	int min = 1000000000;
+	for (int i =0; i < 4;i++) {
+		int c = grid_get_node(g, g->end_x, g->end_y, i)->costs[0];
+		if (c < min) {
+			min = c;
+		}
+	}
+	return min;
+}
+
+void mark_best_path(grid * g, maze * m, int cur_x, int cur_y, int cur_d, int * count) {
+	//maze_print(m);
+	//getchar();
+	printf("%d\n", *count);
+
+	char cur = maze_get(m, cur_x, cur_y);
+	//printf("Count: %d\n", *count);
+
+	if (cur_x == g->start_x && cur_y == g->start_y) {
+		if (cur == 'S') {
+			printf("START DETECTED\n");
+			maze_set(m, cur_x, cur_y, '!');
+			(*count)++;
+		} else {
+			printf("START DETECTED BAD\n");
+		}
+		return;
+	} else if (cur != '!') {
+		(*count)++;
+		maze_set(m, cur_x, cur_y, '!');
+	}
+
+
+	node * n = grid_get_node(g, cur_x, cur_y, cur_d);
+	if (n == NULL) {
+		printf("Error\n");
+		exit(0);
+	}
+
+	int min_cost = n->costs[0];
+
+	//for (int i = 0; i < 3; i++) {
+	//	if (n->costs[i] == min_cost) {
+	//		printf("M");
+	//	}
+	//	printf("(%d,%d,%d,%d)", n->costs[i], n->previous_nodes_x[i], n->previous_nodes_y[i], n->previous_nodes_d[i]);
+	//}
+	//printf("\n");
+
+	for (int i = 0; i < 3; i++) {
+		if (n->costs[i] != min_cost && min_cost != 100000000 && min_cost != 0) {
+			n->previous_nodes_x[i] = -1; 
+			n->previous_nodes_y[i] = -1;
+			n->previous_nodes_d[i] = -1;
+			n->costs[i] = 100000000;
+		}
+	}
+
+	for (int i = 0; i < 3; i++) {
+		if (n->costs[i] == min_cost && min_cost != 100000000 && min_cost != 0) {
+			//getchar();
+			int px = n->previous_nodes_x[i];
+			int py = n->previous_nodes_y[i];
+			int di = n->previous_nodes_d[i];
+
+			n->previous_nodes_x[i] = -1;
+			n->previous_nodes_y[i] = -1;
+			n->previous_nodes_d[i] = -1;
+			n->costs[i] = 100000000;
+
+			mark_best_path(g, m, px, py, di, count);
+			//kill the path once it has been visited? (and if its the cheapest make sure to kill all others)
+			//should get rid of endless cycle
+		}
+	}
 }
 
 int main() {
 	maze * m = maze_from_file();
 	maze_print(m);
-	int cur_x, cur_y;
-	cost_table * t = cost_table_create(m, &cur_x, &cur_y);
-	//cost_table_print(t);
-	printf("Cur x, y: %d,%d\n", cur_x, cur_y);
-	step(m, t, cur_x, cur_y, -1);
-	cost_table_print_alt(t);
-	printf("Final cost: %d\n",get_final_cost(m, t));
+	grid * g = grid_create(m);
+	grid_step(g, m, g->start_x, g->start_y, EAST);
+	int min_cost = grid_get_final_cost(g);
+	printf("Min cost: %d\n", min_cost);
+	//grid_print(g);
+	int count = 0;
+
+	//4 directions
+	for (int i = 0; i < 4; i++) {
+		node * n = grid_get_node(g, g->end_x, g->end_y, i);
+		if (n->costs[0] == min_cost) {
+			//printf("N starts\n");
+			mark_best_path(g, m, g->end_x, g->end_y, i, &count);
+		}
+	}
+	
+	printf("Cound: %d\n", count);
+	//maze_print(m);
 }
