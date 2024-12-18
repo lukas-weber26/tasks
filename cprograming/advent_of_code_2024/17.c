@@ -8,6 +8,7 @@
 
 jmp_buf buf;
 int logtier = 0;
+long long int n_iterations = 0;
 
 void logger(char * c) {
 	if (logtier)
@@ -168,12 +169,12 @@ int get_combo_op(state * s, int n) {
 	}
 }
 
-int pow8(int v) {
+long long int pow8(long long int v) {
 	if (v == 0) {
 		return 1;
 	} else {
-		int val = 8;
-		for (int i = 1; i < v; i++) {
+		long long int val = 8;
+		for (long long int i = 1; i < v; i++) {
 			val *= 8;	
 		}
 		return val;
@@ -269,7 +270,9 @@ void state_run(state * s) {
 			case 5: run_out(s); break;//out	
 			case 6: run_bdv(s); break;//bdv	
 			case 7: run_cdv(s); break;//cdv	
-		}	
+		}
+		n_iterations ++;
+		//state_print(s);	 //demonstrates that a decreases and program ends at a=0, and b and c don't
 	}
 } 
 
@@ -313,92 +316,127 @@ void get_crazy(state * s) {
 	}
 }
 
+bool list_cmp(int target[], int cmp [], int len) {
+	for (int i = 0; i < len; i++) {
+		if (target[i] != cmp[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+int find_list_input(int target[], int target_len, state * initial_state) {
+	for (int i = 0; i < 100000000; i ++) {
+		//printf("%d\n", i);
+
+		state * cpy = state_copy(initial_state);
+		cpy->A = i;
+		state_run(cpy);
+		//state_print_output(cpy);
+
+		if (cpy->cur_out_len < target_len) {
+			state_free(&cpy); 
+			continue;
+		}
+
+		if (list_cmp(target, cpy->out, target_len)) {
+			//printf("Match\n");
+			state_free(&cpy);
+			return i;
+		}
+		
+		state_free(&cpy);
+
+	}
+	return  -1;
+}
+
+void quick_state_run(state * s, int A) {
+	state * scpy = state_copy(s);
+	scpy->A = A;
+	state_run(scpy);
+	state_print_output(scpy);
+	state_free(&scpy);
+}
+
+void print_octal(int input) {
+	int c = 0;
+	printf("0");
+	while (input > 0) {
+		printf(" + %lld*%d", pow8(c), (input % 8));	
+		input = input >> 3;
+		c++;
+	}
+}
+
+void produce_n(state * s, int len, int max_len) {
+	int l [6] = {0,3,5,4,3,0};
+	int input = find_list_input(l, len, s);
+	//printf("Input %d produces: ", input);
+	printf("Input ");
+	print_octal(input);
+	printf(", produces: \n");
+	for (int j = 0; j < max_len; j++) {
+		printf("%d,", l[j]);
+	}
+	printf("\n");
+	quick_state_run(s, input);
+}
+
+void experiment_1(state * s) {
+	for (int i = 1; i < 7; i++) {
+		produce_n(s, i, 6);
+		printf("\n\n");
+	}
+}
+
+
+int octals_to_int(int octals[]) {
+	int sum = 0;
+	for (int i = 0; i < 7; i++) {
+		sum += pow8(i) * octals[i];
+	}
+	return sum;
+}
+
+
+state * state_run_with_input(state * s, int octal_value) {
+	state * s2 = state_copy(s);
+	s2->A = octal_value;
+	state_run(s2);
+	return s2;
+}
+
+void experiment_2(state * s) {
+	//goal: same as experiment one but backwards
+	int target [6] = {0,3,5,4,3,0};
+	int octals [6] = {-1,0,3,5,4,3}; //5th power is 3
+	//so in short, the first one was not needed
+	//and the 5th power is actually used to choose the 5th digit, despite there being 6 total (the final 0 is a given)
+
+	for (int i = 0; i < 8; i++) { 
+		state * complete = state_run_with_input(s, pow8(5)*octals[5] + pow8(4)*octals[4] + pow8(3) * octals[3] + pow8(2) * octals[2] + pow8(1) * 0);
+		printf("%d: ", i);
+		state_print_output(complete);
+		state_free(&complete);
+	}
+
+}
+
 int main() {
 	//think I get it
-	int targets[] = {0,3,5,5,7,4,4,1,3,0,5,7,3,1,4,2};
-
+	//how does a impact the number of iterations
 	state * s = state_from_file(0, 0, 0);
+	//experiment_1(s);
+	experiment_2(s);
 
-	//all of these produce output starting with 2 due to the 5 at the end
-	//s->A = 8*1 + 5;
-	//s->A = 8*2 + 5;
-	//s->A = 8*3 + 5;
-	//s->A = 8*4 + 5;
-	//s->A = 8*5 + 5;
-	//s->A = 8*6 + 5;
-	//s->A = 8*7 + 5;
-	//s->A = 64*3 +  8*1 + 5; //for some reason this breaks the pattern
-	s->A = 64*5 + 8*2 + 5;
-	state_run(s);
-	state_print_output(s);
 
-	//int input = 0;
-	//for (int i = 0; i < 1 && i < 16; i++) {
-	//	for (int j = 0; j < 8; j ++) {
-	//		state * local = state_copy(s);
-	//		local->A = input + j * pow8(i);
-	//		state_run(local);
-	//		state_print_output(local);	
-	//		if (local->out[local->cur_out_len - 1] == targets[i]) {
-	//			input += j * pow8(i);
-	//			//state_print_output(local);	
-	//			break;
-	//		}
-	//		state_free(&local);
+	//for (int i = 1; i < 7; i++) {
+	//	printf("Input %d produces: ", find_list_input(l, i, s));
+	//	for (int j = 0; j < i; j++) {
+	//		printf("%d, ", l[j]);
 	//	}
+	//	printf("\n");
 	//}
-	
-	//1. Find number 0-7 that produces last digit(0)
-	//2. find number 0-7 that when placed before number 1 produces last two digits(3,0)
-	//3. continue unitl you have everything
-
-	//for (int i = 0; i < 8; i++) {
-	//	tables[i] = table_create();
-	//}
-	//
-	//state * s = state_from_file(0, 0, 0);
-
-	//for (int i = 0; i < 100; i++) {
-	//	state * s2 = state_copy(s);
-	//	s2->A = i;
-	//	//printf("Input: %d\n", i);
-	//	state_run(s2);
-
-	//	//state_print(s2);
-	//	state_print_output(s2);
-
-	//	//if (io_cmp(s2)) {
-	//	//	printf("Nice %d\n", i);
-	//	//	exit(0);
-	//	//} else {
-	//	//	//printf("%d\n", i);
-	//	//}
-	//	//state_print_output(s2);
-	//}
-
-	//char * names[] = {"adv", "bxl", "bst", "jnz", "bxc", "out", "bdv", "cdv"};
-	//for (int i = 0; i < 8; i++) {
-	//	printf("%s has %d\n", names[i], tables[i]->n_unique);
-	//}
-	
-	//output happens once per loop.
-
-
-	//some inputs clearly lead to some digits appearing, this creates a predictable pattern
-	//other digits seem to be a bad move. probably a good idea to avoid the ones that make bad patterns
-	
-
-	
-
-//the pattern seems to be this 
-
-//run_bst
-//run_bxl
-//run_cdv
-//run_adv
-//run_bxl
-//run_bxc
-//run_out
-//run_jnz
 
 }
