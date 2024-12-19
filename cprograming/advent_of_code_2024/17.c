@@ -15,65 +15,10 @@ void logger(char * c) {
 		printf("%s", c);
 }
 
-typedef struct table {
-	int * keys;
-	int * counts;
-	int max_items;
-	int n_items;
-	int n_unique;
-} table;
-
-//table * tables[8];
-
-table * table_create() {
-	table * t = calloc(1, sizeof(table));
-	t->max_items = 2048;
-	t->n_items = 0;
-	t->n_unique = 0;
-	t->keys = malloc(2040 * t->max_items);
-	t->counts = malloc(2040 * t->max_items);
-	for (int i = 0; i < t->max_items; i++) {
-		t->keys[i] = -1;
-		t->counts[i] = 0;
-	}
-	return t;
-}
-
-void table_insert(table * t, int key) {
-	int index = ((key*37 >> 2) % t->max_items);
-	int index_cpy = index;
-	while (1) {
-		if (t->keys[index] == key) {
-			t->counts[index] ++;
-			t->n_items ++;
-			return;
-		} else if (t->keys[index] == -1) {
-			t->keys[index] = key;
-			t->counts[index] ++;
-			t->n_unique ++;
-			t->n_items ++;
-			return;
-		} 
-		index ++;
-		if (index == index_cpy) {
-			printf("ERROR, SMALL TABLE\n");
-			exit(0);
-		}
-	}
-}
-
-void table_print(table * t) {
-	for (int i = 0; i < t->max_items; i++) {
-		if (t->keys[i] != -1) {
-			printf("%d:%d\n", t->keys[i], t->counts[i]);
-		}
-	}
-}
-
 typedef struct state {
-	int A;
-	int B;
-	int C;
+	long long int A;
+	long long int B;
+	long long int C;
 	int * program;
 	int cur_program_len;
 	int max_program_len;
@@ -90,7 +35,7 @@ void state_free(state ** s) {
 	s = NULL;
 }
 
-state * state_create(int A, int B, int C) {
+state * state_create(long long int A, long long int B, long long int C) {
 	state * s = calloc(1, sizeof(state));
 	s->A = A;
 	s->B = B;
@@ -106,8 +51,7 @@ state * state_create(int A, int B, int C) {
 }
 
 void state_print(state * s) {
-	printf("A,B,C = %d,%d,%d\n", s->A, s->B, s->C);
-	//printf("IP, len, max = %d, %d, %d\n", s->instruction_pointer, s->cur_program_len, s->max_program_len);
+	printf("A,B,C = %lld,%lld,%lld\n", s->A, s->B, s->C);
 }
 
 void state_print_program(state * s) {
@@ -118,7 +62,6 @@ void state_print_program(state * s) {
 }
 
 void state_print_output(state * s) {
-	//printf("OUTPUT LENGTH: %d\n", s->cur_out_len);
 	for (int i = 0; i < s->cur_out_len; i++) {
 		printf("%d,", s->out[i]);
 	}
@@ -141,7 +84,7 @@ void state_add_instructions(state * s, int n) {
 	}
 }
 
-state * state_from_file(int A, int B, int C) {
+state * state_from_file(long long int A, long long int B, long long int C) {
 	state * s = state_create(A, B, C);
 	FILE * f = fopen("./input17.txt", "r");
 	int c;
@@ -154,7 +97,7 @@ state * state_from_file(int A, int B, int C) {
 	return s;
 }
 
-int get_combo_op(state * s, int n) {
+long long int get_combo_op(state * s, long long int n) {
 	if (n < 4) {
 		return n;
 	} else if (n == 4) {
@@ -181,12 +124,12 @@ long long int pow8(long long int v) {
 	}
 }
 
-int mpow(int v) {
+long long int mpow(long long int v) {
 	if (v == 0) {
 		return 1;
 	} else {
-		int val = 2;
-		for (int i = 1; i < v; i++) {
+		long long int val = 2;
+		for (long long int i = 1; i < v; i++) {
 			val *= 2;	
 		}
 		return val;
@@ -195,30 +138,30 @@ int mpow(int v) {
 
 void run_adv(state * s){
 	logger("run_adv\n");
-	int denominator = mpow(get_combo_op(s, s->program[s->instruction_pointer++]));
-	int result = s->A/(denominator);
+	long long int denominator = mpow(get_combo_op(s, s->program[s->instruction_pointer++]));
+	long long int result = s->A/(denominator);
 	s-> A = result;
 	//table_insert(tables[0], result);
 }
 
 void run_bxl(state * s){
 	logger("run_bxl\n");
-	int val = s->program[s->instruction_pointer++];
-	int result = s->B ^ val;
+	long long int val = s->program[s->instruction_pointer++];
+	long long int result = s->B ^ val;
 	s->B = result;
 	//table_insert(tables[1], result);
 }
 
 void run_bst(state * s){
 	logger("run_bst\n");
-	int val = get_combo_op(s, s->program[s->instruction_pointer++]) % 8;
+	long long int val = get_combo_op(s, s->program[s->instruction_pointer++]) % 8;
 	s->B = val;
 	//table_insert(tables[2], val);
 }
 
 void run_jnz(state * s){
 	logger("run_jnz\n");
-	int val = 1;
+	long long int val = 1;
 	if (s->A != 0) {
 		val = s->program[s->instruction_pointer];
 		s->instruction_pointer = val;
@@ -240,21 +183,21 @@ void run_bxc(state * s){
 void run_out(state * s){
 	logger("run_out\n");
 	//printf("Output running\n");
-	int val = get_combo_op(s, s->program[s->instruction_pointer++]) % 8;
+	long long int val = get_combo_op(s, s->program[s->instruction_pointer++]) % 8;
 	state_add_output(s, val);
 	//table_insert(tables[5], val);
 }
 
 void run_bdv(state * s){
 	logger("run_bdv\n");
-	int denominator = mpow(get_combo_op(s, s->program[s->instruction_pointer++]));
+	long long int denominator = mpow(get_combo_op(s, s->program[s->instruction_pointer++]));
 	s-> B = s->A/(denominator);
 	//table_insert(tables[6], s->B);
 }
 
 void run_cdv(state * s){
 	logger("run_cdv\n");
-	int denominator = mpow(get_combo_op(s, s->program[s->instruction_pointer++]));
+	long long int denominator = mpow(get_combo_op(s, s->program[s->instruction_pointer++]));
 	s-> C = s->A/(denominator);
 	//table_insert(tables[7], s->C);
 }
@@ -400,7 +343,7 @@ int octals_to_int(int octals[]) {
 }
 
 
-state * state_run_with_input(state * s, int octal_value) {
+state * state_run_with_input(state * s, long long int octal_value) {
 	state * s2 = state_copy(s);
 	s2->A = octal_value;
 	state_run(s2);
@@ -423,20 +366,67 @@ void experiment_2(state * s) {
 
 }
 
+//goal: automate experiment 2
+void experiment_3(state * s) {
+	//goal: same as experiment one but backwards
+	int target [6] = {0,3,5,4,3,0};
+	int octals [5] = {0,0,0,0,0};//{-1,0,3,5,4,3}; //5th power is 3
+	//so in short, the first one was not needed
+	//and the 5th power is actually used to choose the 5th digit, despite there being 6 total (the final 0 is a given)
+	int total = 0;
+	for (int i = 6; i > 0; i--) {
+		int step_target = target[i-1];
+		printf("Step target: %d\n", step_target);
+		for (int j = 0; j < 8; j++) { 
+			int input = total + pow8(i)*j;
+			state * complete = state_run_with_input(s, input);
+			if (complete->cur_out_len > i) {
+				if (complete->out[i-1] == target[i]) {
+					state_print_output(complete);
+					printf("%d\n", complete->out[i-1]);
+					total = input;
+				}
+			}
+			//if (complete->cur_out_len >= i && complete->out[i] == step_target) {
+			//	printf("Curr out: %d\n", complete->out[i]);
+			//	state_print_output(complete);
+			//	total = input;
+			//	printf("Input: %d\n", total);
+			//}
+			state_free(&complete);
+		}
+	}
+
+
+	for (int i = 0; i < 8; i++) {
+		state * final = state_run_with_input(s, total  + i);
+		state_print_output(final);
+		printf("%d\n", total + i);
+	}
+
+}
+
+void experiment_4(state * s) {
+	int target [16] = {2,4,1,3,7,5,0,3,1,4,4,7,5,5,3,0};
+	int octals [16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //5th power is 3
+	//so in short, the first one was not needed
+	//and the 5th power is actually used to choose the 5th digit, despite there being 6 total (the final 0 is a given)
+
+	for (int i = 0; i < 8; i++) { 
+		long long int input = pow8(15)*7 + pow8(14)*4 + pow8(13)*5 + pow8(12)*4 + pow8(11)*3 + pow8(10)*0 + pow8(9)*2 + pow8(8)*6 + pow8(7)*7 + pow8(6)*0 + pow8(5)*5 + pow8(4)*3 + pow8(3)*6 + pow8(2)*0 + pow8(1)*2 + pow8(0)*1; 
+		printf("%lld\n", input);
+		state * complete = state_run_with_input(s, input);
+		printf("%d:", i);
+		state_print_output(complete);
+	}
+	printf("\n");
+}
+
 int main() {
 	//think I get it
 	//how does a impact the number of iterations
 	state * s = state_from_file(0, 0, 0);
-	//experiment_1(s);
-	experiment_2(s);
-
-
-	//for (int i = 1; i < 7; i++) {
-	//	printf("Input %d produces: ", find_list_input(l, i, s));
-	//	for (int j = 0; j < i; j++) {
-	//		printf("%d, ", l[j]);
-	//	}
-	//	printf("\n");
-	//}
+	experiment_4(s);
+	//experiment_3(s);
 
 }
