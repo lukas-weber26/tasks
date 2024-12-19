@@ -66,6 +66,27 @@ typedef struct maze {
 	int end_y;
 } maze;
 
+void cost_free(cost *c) {
+	if (c != NULL) {
+		if (c->next != NULL) {
+			cost_free(c->next);
+		}
+		free(c);
+	}
+}
+
+void maze_free(maze * m) {
+	free(m->data);
+	for (int i = 0; i < m->y; i++) {
+		for (int j = 0; j < m->x; j++) {
+			cost * c = m->costs[i + j*m->x];
+			cost_free(c);
+		}
+	}
+	free(m->costs);
+	free(m);
+}
+
 void maze_set(maze * m, int x, int y, char val) {
 	if (x < 0 || y < 0) {
 		return;
@@ -165,7 +186,7 @@ void maze_print(maze * m) {
 		}
 		printf("\n");
 	}
-	printf("\n");
+		printf("\n");
 }
 
 void costs_print(maze * m) {
@@ -269,8 +290,9 @@ bool step_to(maze * m, int prev_x, int prev_y, int next_x, int next_y, int prev_
 	}	
 }
 
-void step(maze * m, int cur_x, int cur_y) {
+void step(maze * m, int cur_x, int cur_y, bool * found_goal) {
 	if (cur_x == m->end_x && cur_y == m->end_y) {
+		(*found_goal) = true;
 		return;
 	}	
 
@@ -294,7 +316,7 @@ void step(maze * m, int cur_x, int cur_y) {
 		if (local_chars[i] == '.' || local_chars[i] == 'O') {
 			//printf("(%d,%d),%c\n", local_xcoords[i], local_ycoords[i], local_chars[i]);
 			if (step_to(m, cur_x, cur_y, local_xcoords[i], local_ycoords[i], local_cost + 1)) {
-				step(m, local_xcoords[i], local_ycoords[i]);
+				step(m, local_xcoords[i], local_ycoords[i], found_goal);
 			}
 			//costs_print(m);
 		}
@@ -318,14 +340,71 @@ void backtrack(maze * m, int cur_x, int cur_y, int *count) {
 	backtrack(m, local_cost->x, local_cost->y, count);
 }
 
+bool run(coord_list * l, int i) {
+	maze * m = maze_create(71,71);
+	add_n_from_list_to_maze(m, l, i);
+	//maze_print(m);
+	//costs_print(m);
+	bool found_goal = false;
+	step(m, m->start_x, m->start_y, &found_goal);
+	//maze_print(m);
+
+	if (found_goal == true) {
+		//printf("Found goal\n");
+		int count = 0;
+		//backtrack(m, m->end_x, m->end_y, &count);
+		//printf("Count: %d\n", count);
+		maze_free(m);
+		return true;		
+	} else {
+		//printf("Failed to find goal with %d bytes dropped.\n", i);
+		//printf("Coord of final byte: %d,%d\n", l->x[i-1], l->y[i-1]);
+		return false;	
+	}
+}
+
 int main () {
 	coord_list * l = coords_from_file();
-	maze * m = maze_create(71,71);
-	add_n_from_list_to_maze(m, l, 1024);
-	//maze_print(m);
-	costs_print(m);
-	step(m, m->start_x, m->start_y);
-	int count = 0;
-	backtrack(m, m->end_x, m->end_y, &count);
-	printf("Count: %d\n", count);
+	int min = 1024;
+	int max = l->cur_len;
+	int middle = (min + max)/2;
+
+	bool min_stat, middle_stat, max_stat;
+
+	min_stat = run(l, min);	
+	middle_stat = run(l, middle);	
+	max_stat = run(l, max);	
+	
+	printf("Min,Middle,Max: %d,%d,%d\n", min,middle,max);
+
+	int c = 0;
+	while (1) {
+		c ++;
+		middle_stat = run(l, middle);	
+
+		if (middle_stat == true) {
+			min = middle;
+			min_stat = true;
+			middle = (max + min)/2;
+		} else if (middle_stat == false) {
+			max = middle;
+			max_stat = false;
+			middle = (max + min)/2;
+		}
+
+		//printf("Min,Middle,Max: %d,%d,%d\n", min,middle,max);
+		if (max - min < 3) {
+			break;
+		}
+	}
+	
+	for (int i = min; i <= max; i++) {
+		c++;
+		if (run(l, i) == false) {
+			printf("i:%d failed.\n", i);
+			printf("(x,y) = %d,%d\n", l->x[i-1], l->y[i-1]);
+			printf("number of checks: %d\n", c);
+			exit(0);
+		}
+	}	
 }
