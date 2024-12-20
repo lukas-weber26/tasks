@@ -97,6 +97,14 @@ void string_list_push(string_list * sl, char * data) {
 	}	
 }
 
+bool check_string_advanced(char * s, string_list * sources);
+
+void string_list_push_unique(string_list * sl, char * data) {
+	if (!check_string_advanced(data, sl)) {
+		string_list_push(sl, data);
+	}
+}
+
 void string_list_print(string_list * sl) {
 	for (int i = 0; i < sl->cur; i++) {
 		printf("%s\n", sl->strings[i]);
@@ -111,7 +119,7 @@ void string_list_sort(string_list * s) {
 
 }
 
-string_list * string_list_from_file(char * file) {
+string_list * string_list_from_file(char * file, bool push_only_unique) {
 	string_list * l = string_list_create();
 
 	FILE * f = fopen(file, "r");
@@ -123,7 +131,11 @@ string_list * string_list_from_file(char * file) {
 		if (buff[len - 1] == '\n') {
 			buff[len -1] = '\0';
 		}
-		string_list_push(l, buff);
+		if (push_only_unique) {
+			string_list_push_unique(l, buff);
+		} else {
+			string_list_push(l, buff);
+		}
 		buff = NULL;	
 	}
 
@@ -132,12 +144,13 @@ string_list * string_list_from_file(char * file) {
 
 bool check_string_advanced(char * s, string_list * sources) {
 	int len = strlen(s);
-
+	//printf("Current goal: %s\n", s);
 	for (int l = len; l > 0; l--) {
+		//printf("len: %d\n", l);
 		for (int i = 0; i < sources->cur; i++) {
 			if (strlen(sources->strings[i]) == l) {
 				if (strncmp(s, sources->strings[i], l) == 0) {
-//					printf("%s\n", sources->strings[i]);
+					//printf("%s\n", sources->strings[i]);
 					if (l == len) {
 						return true; 
 					} else {
@@ -155,21 +168,41 @@ bool check_string_advanced(char * s, string_list * sources) {
 	return false;
 }
 
+int size_compare(const void * a, const void * b) {
+	char * A = *(char **)a;
+	char * B = *(char **)b;
+	int result = (strlen(A) - strlen(B));
+	return result;
+}
+
+string_list * clean_string_list(string_list * sl) {
+	qsort(sl->strings, sl->cur, sizeof(char*), size_compare);
+	string_list * new = string_list_create();
+	for (int i = 0; i < sl->cur; i++) {
+		string_list_push_unique(new,sl->strings[i]);
+	}
+	return new;
+}
 
 int main() {
 
-	string_list * sources = string_list_from_file("./input19s.txt");
-	string_list * targets = string_list_from_file("./input19t.txt");
+	string_list * sources = string_list_from_file("./input19s.txt", false);
+	string_list * targets = string_list_from_file("./input19t.txt", false);
 
-	//printf("Strings:\n");
-	//string_list_print(sources);
+	string_list * sources_new = clean_string_list(sources);
+	//printf("%d,%d\n", sources->cur, targets->cur);	
+
+	printf("Sources:\n");
+	printf("new len: %d\n", sources_new->max);
+	string_list_print(sources_new);
 	//printf("Targets:\n");
 	//string_list_print(targets);
-
+	
 	int count = 0;
 	for (int i = 0; i < targets->cur; i++) {
-		if(check_string_advanced(targets->strings[i], sources)) {
+		if(check_string_advanced(targets->strings[i], sources_new)) {
 			count ++;
+			printf("%d\n", count);
 		}
 	}
 	printf("N valid: %d\n", count);
