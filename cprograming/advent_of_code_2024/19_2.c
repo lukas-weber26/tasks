@@ -148,7 +148,7 @@ bool check_string_advanced(char * s, string_list * sources) {
 	for (int l = len; l > 0; l--) {
 		//printf("len: %d\n", l);
 		for (int i = 0; i < sources->cur; i++) {
-			if (strlen(sources->strings[i]) == l) {
+			if (strlen(sources->strings[i]) <= l) {
 				if (strncmp(s, sources->strings[i], l) == 0) {
 					//printf("%s\n", sources->strings[i]);
 					if (l == len) {
@@ -183,14 +183,13 @@ string_list * clean_string_list(string_list * sl) {
 	return new;
 }
 
-void part1() {
+
+int main() {
 	string_list * sources = string_list_from_file("./input19s.txt", false);
 	string_list * targets = string_list_from_file("./input19t.txt", false);
-	string_list * sources_new = clean_string_list(sources);
+	//string_list * sources_new = clean_string_list(sources);
+	string_list * sources_new = sources;
 
-	string_list_print(sources_new);
-	printf("Basis size: %d\n", sources_new->cur);
-	exit(0);
 	int count = 0;
 	for (int i = 0; i < targets->cur; i++) {
 		if(check_string_advanced(targets->strings[i], sources_new)) {
@@ -198,65 +197,6 @@ void part1() {
 			printf("%s\n", targets->strings[i]);
 		}
 	}
-	//printf("N valid: %d\n", count);
-}
-
-int check_string_count(char * s, string_list * sources, int count) {
-	int len = strlen(s);
-	for (int l = len; l > 0; l--) {
-		for (int i = 0; i < sources->cur; i++) {
-			if (strlen(sources->strings[i]) == l) {
-				if (strncmp(s, sources->strings[i], l) == 0) {
-					//printf("%s\n", sources->strings[i]);
-					if (l == len) {
-						count ++;
-					} else {
-						count = check_string_count(s+l, sources, count);
-					}
-					
-				}
-			} 
-		}
-	}
-	return count;
-}
-
-long long int count_ways(char * target, string_list * sub) {
-	int len = strlen(target);
-	long long int * counts = calloc(len + 1, sizeof(long long int));
-	counts[0] = 1;
-
-	for (long long int i = 1; i <= len; i++) {
-		for (long long int j = 0; j < sub->cur; j++) {
-			long long int substring_length = strlen(sub->strings[j]);
-			if (substring_length <= i) {
-				if (strncmp(target + (i - substring_length), sub->strings[j], substring_length) == 0) {
-					counts[i] += counts[i - substring_length];
-				}
-			} 
-		}
-	}
-
-	long long int result = counts[len];
-	free(counts);
-	return result;
-}
-
-int main() {
-
-	string_list * sources = string_list_from_file("./input19s.txt", false);
-	string_list * targets = string_list_from_file("./input19t.txt", false);
-
-	long long int total = 0;
-	int count = 0;
-	for (int i = 0; i < targets->cur; i++) {
-		long long int ways = count_ways(targets->strings[i], sources);	
-		total += ways;
-		if (ways > 0) {
-			count ++;
-		}
-		printf("Count, total, local: %d, %lld,%lld\n", count, total, ways);
-	}
-
+	printf("N valid: %d\n", count);
 }
 
