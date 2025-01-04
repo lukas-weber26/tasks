@@ -299,43 +299,60 @@ int count_shortcuts(maze * m) {
 	return count;
 }
 
+int count_shortcuts_advanced(maze * m) {
+	int count = 0;
+	for (int y = 0; y < m->y; y++) {
+		for (int x = 0; x < m->x; x++) {
+			//getchar();
+			int type = maze_get_data(m, x, y) ;
+			if (type == 'E' || type == '.' || type == 'S') {
+
+				int local_cost = maze_get_cost_val(m, x, y);
+				printf("Point: %d,%d\n", x,y);
+
+				for (int xp = 0; xp <= 40; xp ++) {
+					for (int yp = 0; yp <= 40; yp ++) {
+
+						int cheat_cost = abs(xp -20) + abs(yp-20);
+
+						if (cheat_cost <= 20) {
+							int new_cost = maze_get_cost_val(m, x + xp - 20, y + yp - 20);
+
+							if (new_cost != INF) {
+								//printf("\t checking: %d, %d. Cost: %d\n", x + xp-10, y + yp-10, new_cost);
+								int old_cost = new_cost - local_cost;
+
+								if ( old_cost > 0 && cheat_cost < old_cost) {
+									//valid cheat
+									if (old_cost - cheat_cost >= 100) {
+										count ++;
+									}
+								}
+							}
+
+						}
+
+					}
+				}
+
+					
+			}
+		}
+	}		
+
+	return count;
+}
+
 int main() {
 	maze * m = maze_from_file();
 	maze_print_data(m);
 	maze_print_cost(m);
 	step(m, m->start_x, m->start_y);
 	maze_print_cost(m);
-	int c = count_shortcuts(m);
+	int c = count_shortcuts_advanced(m);
 	printf("Final count: %d\n", c);
 }
 
-
-
-//search for shortcuts
-//char r = maze_get_data(m, next_x_r(R, x, 1), next_y_r(R, y, 1));
-//char rr = maze_get_data(m, next_x_r(R, x, 2), next_y_r(R, y, 2));
-//char rrr = maze_get_data(m, next_x_r(R, x, 3), next_y_r(R, y, 3));
-//
-//if (can_step(rrr) && rr == '#') {
-//	int new_cost = maze_get_cost_val(m, next_x_r(R, x, 3), next_y_r(R, y, 3));
-//	int diff = abs(new_cost - local_cost) + 2;
-//	saves[diff] ++;	
-//} else if (can_step(rr) && r =='#') {
-//	int new_cost = maze_get_cost_val(m, next_x_r(R, x, 2), next_y_r(R, y, 2));
-//	int diff = abs(new_cost - local_cost);
-//	saves[diff] ++;	
-//}
-//
-//char b = maze_get_data(m, next_x_r(B, x, 1), next_y_r(B, y, 1));
-//char bb = maze_get_data(m, next_x_r(B, x, 2), next_y_r(B, y, 2));
-//char bbb = maze_get_data(m, next_x_r(B, x, 3), next_y_r(B, y, 3));
-//
-//if (can_step(bbb) && bb == '#') {
-//	int new_cost = maze_get_cost_val(m, next_x_r(B, x, 3), next_y_r(B, y, 3));
-//	int diff = abs(new_cost - local_cost);
-//	saves[diff] ++;	
-//} else if (can_step(bb) && b =='#') {
-//	int new_cost = maze_get_cost_val(m, next_x_r(B, x, 2), next_y_r(B, y, 2));
-//	int diff = abs(new_cost - local_cost);
-//	saves[diff] ++;	
-//}
+//part two looks really straight forward. only some things to condier:
+//the 20 picosecond thing is of course fucking weird
+//may need to consider if something is usefull for getting to the optimal path and not just the highest possible cost (try to ignore this first)
